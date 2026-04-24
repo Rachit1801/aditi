@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MiniTorrent</title>
+    <style>
+        :root[data-theme="light"] {
+            --bg-color: #f8f9fa;
+            --text-color: #2c3e50;
+            --card-bg: rgba(255, 255, 255, 0.9);
+            --border-color: #e0e0e0;
+            --accent: #00d2ff;
+            --accent-dark: #3a7bd5;
+            --success: #4CAF50;
+            --danger: #e53935;
+            --muted: #6c757d;
+            --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+            --header-bg: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+        }
+
+        :root[data-theme="dark"] {
+            --bg-color: #0f172a;
+            --text-color: #e2e8f0;
+            --card-bg: rgba(30, 41, 59, 0.8);
+            --border-color: #334155;
+            --accent: #00d2ff;
+            --accent-dark: #3a7bd5;
+            --success: #10b981;
+            --danger: #ef4444;
+            --muted: #94a3b8;
+            --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            --header-bg: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            transition: background-color 0.3s, color 0.3s, border-color 0.3s;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+        }
+
+        /* Glassmorphism utility */
+        .glass {
+            background: var(--card-bg);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: var(--card-shadow);
+        }
+
+        /* Header & Navigation */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            background: var(--header-bg);
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            object-fit: contain;
+        }
+
+        .brand-name {
+            font-size: 28px;
+            font-weight: 800;
+            background: linear-gradient(to right, var(--accent), var(--accent-dark));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .theme-toggle {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--text-color);
+            padding: 8px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .theme-toggle:hover {
+            background: rgba(128,128,128,0.1);
+        }
+
+        /* Main Layout */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 30px;
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 30px;
+        }
+
+        /* Stats Panel (Top Right conceptually, placed in sidebar here) */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel {
+            padding: 24px;
+        }
+
+        .panel-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-bottom: 2px solid var(--accent);
+            padding-bottom: 10px;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .stat-box {
+            text-align: center;
+            padding: 15px 5px;
+            background: rgba(128,128,128,0.05);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .stat-val {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent-dark);
+        }
+
+        .stat-lbl {
+            font-size: 12px;
+            color: var(--muted);
+            margin-top: 4px;
+        }
+
+        .peer-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .peer-item {
+            padding: 10px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .peer-item:last-child { border-bottom: none; }
+        
+        .badge {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        /* Main Content Tabs */
+        .main-content {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 16px;
+            font-size: 18px;
+            font-weight: 600;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-color);
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.2s, box-shadow 0.2s, background 0.3s;
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            color: white;
+            border-color: transparent;
+            box-shadow: 0 8px 15px rgba(0, 210, 255, 0.3);
+        }
+
+        .tab-btn:hover:not(.active) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+        }
+
+        .tab-pane {
+            display: none;
+            animation: fadeIn 0.4s ease forwards;
+        }
+        .tab-pane.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Form Elements */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-color);
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 12px 15px;
+            background: rgba(128,128,128,0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-color);
+            font-size: 15px;
+            outline: none;
+        }
+        input[type="text"]:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.2);
+        }
+
+        .file-upload-wrapper {
+            position: relative;
+            border: 2px dashed var(--accent);
+            border-radius: 12px;
+            padding: 40px;
+            text-align: center;
+            background: rgba(0, 210, 255, 0.05);
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .file-upload-wrapper:hover {
+            background: rgba(0, 210, 255, 0.1);
+        }
+        .file-upload-wrapper input[type="file"] {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            opacity: 0; cursor: pointer;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+            color: white;
+            border: none;
+            padding: 14px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            width: 100%;
+            box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 210, 255, 0.4);
+        }
+
+        /* Type selector */
+        .type-selector {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .type-option {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            background: rgba(128,128,128,0.05);
+        }
+        .type-option.selected {
+            border-color: var(--accent);
+            background: rgba(0, 210, 255, 0.1);
+            font-weight: bold;
+            color: var(--accent-dark);
+        }
+
+        /* File List Table */
+        .file-list {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+        .file-list th, .file-list td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .file-list th {
+            color: var(--muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+        .file-list tr:hover {
+            background: rgba(128,128,128,0.02);
+        }
+        
+        .btn-sm {
+            padding: 8px 16px;
+            font-size: 13px;
+            width: auto;
+        }
+
+        /* Progress Bar */
+        .progress-container {
+            margin-top: 20px;
+            background: rgba(128,128,128,0.05);
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 12px;
+            display: none; /* hidden by default */
+        }
+        .progress-header {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .progress-track {
+            height: 12px;
+            background: var(--border-color);
+            border-radius: 6px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), var(--accent-dark));
+            width: 0%;
+            transition: width 0.4s ease;
+        }
+
+        .status-msg {
+            margin-top: 15px;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+        .status-msg.success {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--success);
+            display: block;
+        }
+        .status-msg.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: var(--danger);
+            display: block;
+        }
+
+        /* Responsive */
+        @media(max-width: 900px) {
+            .container { grid-template-columns: 1fr; }
+            .sidebar { grid-row: 1; }
+            .main-content { grid-row: 2; }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo-container">
+            <img src="/static/logo.png" alt="MiniTorrent" class="logo" onerror="this.style.display='none'">
+            <div class="brand-name">MiniTorrent</div>
+        </div>
+        <button class="theme-toggle" onclick="toggleTheme()" id="theme-btn">🌙</button>
+    </header>
+
+    <div class="container">
+        
+        <!-- MAIN CONTENT (Left side) -->
+        <div class="main-content">
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="switchTab('upload-tab', this)">📤 Upload & Share</button>
+                <button class="tab-btn" onclick="switchTab('download-tab', this); loadFiles();">📥 Download Files</button>
+            </div>
+
+            <!-- Upload Panel -->
+            <div id="upload-tab" class="tab-pane active glass panel">
+                <div class="panel-header">Share a File or Folder</div>
+                
+                <div class="type-selector">
+                    <div class="type-option selected" id="opt-file" onclick="setUploadType('file')">Single File</div>
+                    <div class="type-option" id="opt-folder" onclick="setUploadType('folder')">Folder</div>
+                </div>
+
+                <div class="form-group">
+                    <label>Display Name (Optional)</label>
+                    <input type="text" id="custom-name" placeholder="E.g., My Awesome Project v2">
+                </div>
+
+                <div class="form-group file-upload-wrapper" id="drop-zone">
+                    <input type="file" id="file-input">
+                    <div style="font-size: 32px; margin-bottom: 10px;">📁</div>
+                    <div id="file-name-display" style="font-weight: bold; margin-bottom: 5px;">Drag & Drop or Click to Select</div>
+                    <div style="font-size: 12px; color: var(--muted);" id="file-hint">Select a single file to share</div>
+                </div>
+
+                <button class="btn-primary" onclick="uploadFile()">Upload & Generate Metainfo</button>
+                <div id="upload-result" class="status-msg"></div>
+            </div>
+
+            <!-- Download Panel -->
+            <div id="download-tab" class="tab-pane glass panel">
+                <div class="panel-header">Available Torrents</div>
+                
+                <div style="overflow-x: auto;">
+                    <table class="file-list" id="files-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Size</th>
+                                <th>Pieces</th>
+                                <th>Uploaded</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="files-list-body">
+                            <tr><td colspan="5" style="text-align:center; color: var(--muted);">Loading files...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Global Progress Container -->
+                <div class="progress-container" id="dl-progress-box">
+                    <div class="progress-header">
+                        <span id="dl-filename">Downloading...</span>
+                        <span id="dl-stats">0% (0 / 0)</span>
+                    </div>
+                    <div class="progress-track">
+                        <div class="progress-fill" id="dl-fill"></div>
+                    </div>
+                </div>
+                
+                <div id="download-result" class="status-msg"></div>
+            </div>
+        </div>
+
+        <!-- SIDEBAR (Right side) -->
+        <div class="sidebar">
+            <div class="glass panel">
+                <div class="panel-header">📡 Network Stats</div>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-val" id="stat-active">-</div>
+                        <div class="stat-lbl">Active Peers</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-val" id="stat-healthy">-</div>
+                        <div class="stat-lbl">Healthy</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-val" id="stat-torrents">-</div>
+                        <div class="stat-lbl">Torrents</div>
+                    </div>
+                </div>
+                <div style="font-size: 11px; color: var(--muted); text-align: center;" id="refresh-time">Connecting...</div>
+            </div>
+
+            <div class="glass panel" style="flex: 1;">
+                <div class="panel-header">🖥️ Active Peers</div>
+                <div class="peer-list" id="peers-list">
+                    <div style="text-align:center; color: var(--muted); padding: 20px 0;">No peers connected</div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- Theme Management ---
+        function toggleTheme() {
+            const html = document.documentElement;
+            const current = html.getAttribute('data-theme');
+            const next = current === 'light' ? 'dark' : 'light';
+            html.setAttribute('data-theme', next);
+            localStorage.setItem('theme', next);
+            document.getElementById('theme-btn').textContent = next === 'light' ? '🌙' : '☀️';
+        }
+
+        // Init theme
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        document.getElementById('theme-btn').textContent = savedTheme === 'light' ? '🌙' : '☀️';
+
+
+        // --- Tabs Management ---
+        function switchTab(tabId, btnElement) {
+            document.querySelectorAll('.tab-pane').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+            btnElement.classList.add('active');
+        }
+
+        // --- Upload Logic ---
+        let currentUploadType = 'file';
+        const fileInput = document.getElementById('file-input');
+        const fileNameDisplay = document.getElementById('file-name-display');
+
+        function setUploadType(type) {
+            currentUploadType = type;
+            document.getElementById('opt-file').classList.toggle('selected', type === 'file');
+            document.getElementById('opt-folder').classList.toggle('selected', type === 'folder');
+            
+            if (type === 'folder') {
+                fileInput.setAttribute('webkitdirectory', '');
+                fileInput.setAttribute('directory', '');
+                document.getElementById('file-hint').textContent = 'Select a folder containing multiple files';
+            } else {
+                fileInput.removeAttribute('webkitdirectory');
+                fileInput.removeAttribute('directory');
+                document.getElementById('file-hint').textContent = 'Select a single file to share';
+            }
+            fileInput.value = ''; // reset
+            fileNameDisplay.textContent = 'Drag & Drop or Click to Select';
+        }
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                if (currentUploadType === 'folder') {
+                    fileNameDisplay.textContent = `${e.target.files.length} files selected (Folder)`;
+                } else {
+                    fileNameDisplay.textContent = e.target.files[0].name;
+                }
+            }
+        });
+
+        async function uploadFile() {
+            const resultDiv = document.getElementById('upload-result');
+            const customName = document.getElementById('custom-name').value;
+
+            if (fileInput.files.length === 0) {
+                showMsg(resultDiv, 'Please select a file or folder first.', 'error');
+                return;
+            }
+
+            showMsg(resultDiv, 'Uploading and hashing pieces... This may take a moment.', 'success');
+
+            const formData = new FormData();
+            for (let i = 0; i < fileInput.files.length; i++) {
+                const f = fileInput.files[i];
+                formData.append('file', f, f.webkitRelativePath || f.name);
+            }
+            if (customName) formData.append('custom_name', customName);
+
+            try {
+                const resp = await fetch('/upload', { method: 'POST', body: formData });
+                const data = await resp.json();
+
+                if (data.error) throw new Error(data.error);
+
+                showMsg(resultDiv, `✔ Upload successful! Now seeding "${data.display_name}".`, 'success');
+                // Reset form
+                fileInput.value = '';
+                document.getElementById('custom-name').value = '';
+                fileNameDisplay.textContent = 'Drag & Drop or Click to Select';
+                
+            } catch (e) {
+                showMsg(resultDiv, `Upload failed: ${e.message}`, 'error');
+            }
+        }
+
+        // --- Download Logic ---
+        function formatBytes(bytes, decimals = 2) {
+            if (!+bytes) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return `${parseFloat((bytes / Math.pow(k, i)).toFixed(dm))} ${sizes[i]}`;
+        }
+
+        async function loadFiles() {
+            const tbody = document.getElementById('files-list-body');
+            try {
+                const resp = await fetch('/files');
+                const data = await resp.json();
+
+                if (data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--muted);">No torrents available on the network yet.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = data.map(f => {
+                    const date = f.uploaded_at ? new Date(f.uploaded_at * 1000).toLocaleString() : 'Unknown';
+                    const isDir = f.is_dir ? '📁 ' : '📄 ';
+                    return `
+                        <tr>
+                            <td style="font-weight: 500;">${isDir}${f.display_name}</td>
+                            <td>${formatBytes(f.total_size)}</td>
+                            <td>${f.num_pieces}</td>
+                            <td style="font-size: 12px; color: var(--muted);">${date}</td>
+                            <td>
+                                <button class="btn-primary btn-sm" onclick="startDownload('${f.metainfo_path}', '${f.file_name}')">Download</button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            } catch (e) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color: var(--danger);">Failed to load files.</td></tr>';
+            }
+        }
+
+        async function startDownload(metainfoPath, originalFileName) {
+            const resultDiv = document.getElementById('download-result');
+            showMsg(resultDiv, 'Starting download...', 'success');
+            
+            // Fixed port for demo purposes, could be made dynamic
+            const port = Math.floor(Math.random() * (6999 - 6881 + 1) + 6881); 
+
+            try {
+                const resp = await fetch('/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ metainfo_path: metainfoPath, port: port })
+                });
+                const data = await resp.json();
+
+                if (data.error) throw new Error(data.error);
+
+                showMsg(resultDiv, `✔ Connected to swarm! Downloading ${data.file_name}...`, 'success');
+                startProgressPolling(data.file_name, data.num_pieces);
+
+            } catch (e) {
+                showMsg(resultDiv, `Download failed: ${e.message}`, 'error');
+            }
+        }
+
+        let pollInterval = null;
+        function startProgressPolling(fileName, expectedPieces) {
+            const box = document.getElementById('dl-progress-box');
+            const fnameEl = document.getElementById('dl-filename');
+            const statsEl = document.getElementById('dl-stats');
+            const fillEl = document.getElementById('dl-fill');
+            
+            box.style.display = 'block';
+            fnameEl.textContent = `Downloading: ${fileName}`;
+            fillEl.style.width = '0%';
+            fillEl.style.background = 'linear-gradient(90deg, var(--accent), var(--accent-dark))';
+
+            if (pollInterval) clearInterval(pollInterval);
+
+            pollInterval = setInterval(async () => {
+                try {
+                    const resp = await fetch('/progress');
+                    const data = await resp.json();
+                    
+                    const pData = data[fileName];
+                    if (!pData) return;
+
+                    const pct = pData.percent || 0;
+                    const done = pData.pieces_done || 0;
+                    const total = pData.total_pieces || expectedPieces;
+
+                    fillEl.style.width = `${pct}%`;
+                    statsEl.textContent = `${pct}% (${done} / ${total})`;
+
+                    if (pData.status === 'completed') {
+                        clearInterval(pollInterval);
+                        fillEl.style.background = 'var(--success)';
+                        statsEl.textContent = '✔ Complete! Now Seeding.';
+                        const resDiv = document.getElementById('download-result');
+                        resDiv.innerHTML = `<div style="margin-top:15px; text-align:center;"><a href="/download_file?filename=${encodeURIComponent(fileName)}" class="btn-primary" style="display:inline-block; text-decoration:none; max-width: 200px;">💾 Save to Disk</a></div>`;
+                        resDiv.style.display = 'block';
+                        resDiv.className = ''; // remove error/success classes so it doesn't have a background, just the button
+                    }
+                } catch (e) { /* ignore poll errors */ }
+            }, 1000);
+        }
+
+        // --- Network Stats Logic ---
+        async function refreshStats() {
+            try {
+                const resp = await fetch('/stats');
+                const data = await resp.json();
+
+                const statActive = document.getElementById('stat-active');
+                const statHealthy = document.getElementById('stat-healthy');
+                const statTorrents = document.getElementById('stat-torrents');
+                const peersDiv = document.getElementById('peers-list');
+
+                if (data.error) {
+                    statActive.textContent = statHealthy.textContent = statTorrents.textContent = '-';
+                    peersDiv.innerHTML = `<div style="text-align:center; color: var(--danger); padding: 20px 0;">${data.error}</div>`;
+                    return;
+                }
+
+                const summary = data.summary || {};
+                const torrents = data.torrents || {};
+
+                statActive.textContent = summary.total_active_peers ?? 0;
+                statHealthy.textContent = summary.total_healthy_peers ?? 0;
+                statTorrents.textContent = summary.total_torrents ?? 0;
+
+                const files = Object.keys(torrents);
+                let peersHTML = '';
+                
+                files.forEach(infoHash => {
+                    const shortHash = infoHash.substring(0, 8);
+                    Object.entries(torrents[infoHash].peers).forEach(([addr, age]) => {
+                        const isHealthy = age <= 30;
+                        peersHTML += `
+                            <div class="peer-item">
+                                <div><strong style="color:var(--accent-dark)">${addr}</strong></div>
+                                <div>
+                                    <span style="font-size:11px; color:var(--muted)">Hash: ${shortHash}</span>
+                                    ${isHealthy ? '<span class="badge">Healthy</span>' : ''}
+                                </div>
+                            </div>
+                        `;
+                    });
+                });
+
+                peersDiv.innerHTML = peersHTML || `<div style="text-align:center; color: var(--muted); padding: 20px 0;">No active peers</div>`;
+                document.getElementById('refresh-time').textContent = `Last updated: ${new Date().toLocaleTimeString()}`;
+
+            } catch (e) {
+                document.getElementById('refresh-time').textContent = 'Connection lost';
+            }
+        }
+
+        // Utils
+        function showMsg(el, msg, type) {
+            el.textContent = msg;
+            el.className = `status-msg ${type}`;
+            el.style.display = 'block';
+        }
+
+        // Start loops
+        refreshStats();
+        setInterval(refreshStats, 3000);
+
+    </script>
+</body>
+</html>
